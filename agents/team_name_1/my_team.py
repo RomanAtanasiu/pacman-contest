@@ -99,7 +99,6 @@ class ReflexCaptureAgent(CaptureAgent):
                     best_action = action
                     best_dist = dist
             return best_action
-        print("a\n")
         return random.choice(best_actions)
 
     def get_successor(self, game_state, action):
@@ -145,35 +144,46 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
   we give you to get an idea of what an offensive agent might look like,
   but it is by no means the best or only way to build an offensive agent.
   """
-    def __init__(self, index, alpha=0.1, gamma=0.9, epsilon=0.1, ghost_threshold=5):
+    def __init__(self, index, alpha=0.1, gamma=0.9, epsilon=0.1, ghost_threshold=5, max_distance=100, max_food=20): 
         super().__init__(index)
         print("Initializing OffensiveReflexAgent\n")
         self.alpha = alpha  # Learning rate
         self.gamma = gamma  # Discount factor
         self.epsilon = epsilon  # Exploration rate
         self.theta = util.Counter()  # Weights
-    
+
+    def register_initial_state(self, game_state):
+        super().register_initial_state(game_state)
+        # Calculate the distance from the bottom-right corner to the top-left corner
+        walls = game_state.get_walls()
+        bottom_right = (walls.width - 1, 0)
+        top_left = (0, walls.height - 1)
+        self.max_distance = walls.width * (walls.height +1) 
+        # Calculate the initial number of food pellets
+        self.max_food = len(self.get_food(game_state).as_list())
+        
+        
     #added features: remaining food, num_carrying_food, distance_to_boundary, distance_to_rival, ghost_in_threshold, ghost_in_trajectory
     def get_features(self, game_state, action):
         features = util.Counter()
         successor = self.get_successor(game_state, action)
         food_list = self.get_food(successor).as_list()
-        features['successor_score'] = -len(food_list)  # self.get_score(successor)
+        features['successor_score'] = -len(food_list)/self.max_food  # self.get_score(successor)
 
         # Compute distance to the nearest food
         if len(food_list) > 0:  # This should always be True,  but better safe than sorry
             my_pos = successor.get_agent_state(self.index).get_position()
             min_distance = min([self.get_maze_distance(my_pos, food) for food in food_list])
-            features['distance_to_food'] = min_distance
+            features['distance_to_food'] = min_distance/self.max_distance
         else:
             features['distance_to_food'] = 0
             
         # Compute remaining food
-        features['remaining_food'] = len(food_list)
+        features['remaining_food'] = -len(food_list)/self.max_food
             
         # Compute carring food
         carried_food = game_state.get_agent_state(self.index).num_carrying
-        features['num_carrying_food'] = carried_food
+        features['num_carrying_food'] = carried_food/self.max_food
         
         
         
@@ -189,7 +199,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         boundary_points = [(boundary_x, y) for y in range(walls.height) if not walls[boundary_x][y]]
         # Compute the distance to the closest boundary point
         min_distance = min([self.get_maze_distance(my_pos, point) for point in boundary_points])
-        features['distance_to_boundary'] = min_distance
+        features['distance_to_boundary'] = min_distance/self.max_distance
             
             
         # Compute distance to the closest rival agent
@@ -197,7 +207,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         rivals = [a for a in enemies if a.get_position() is not None]
         if len(rivals) > 0:
             dists = [self.get_maze_distance(my_pos, rival.get_position()) for rival in rivals]
-            features['distance_to_rival'] = min(dists)
+            features['distance_to_rival'] = min(dists)/self.max_distance
         else:
             features['distance_to_rival'] = 0
             
@@ -215,6 +225,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
     
         # Is a ghost in trajctory to food?
         # Compute the angle to the closest food
+        """
         if len(food_list) > 0:
             closest_food = None
             min_distance = float('inf')
@@ -226,7 +237,6 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             delta_x = closest_food[0] - my_pos[0]
             delta_y = closest_food[1] - my_pos[1]
             angle_to_food = math.atan2(delta_y, delta_x)
-        """
         # Compute the angle to the closest ghost
         elif len(ghosts) > 0:
             closest_ghost = None
@@ -303,7 +313,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         if my_state.num_returned > previous_state.num_returned:
             reward += 20 * (my_state.num_returned - previous_state.num_returned)
     
-        return reward
+        return reward/2000
     
     def evaluate(self, game_state, action):
         weights = self.get_weights(game_state, action)
@@ -355,17 +365,19 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         return self.theta
     
     
-    def load_weights(self, file_path='weights.txt'):
+    def load_weights(self, file_path='weights.json'):
         if os.path.exists(file_path):
             with open(file_path, 'r') as file:
-                self.theta = util.Counter(eval(file.read()))
+                weights_str = file.read()
+                weights_str = weights_str.replace('inf', 'float("inf")').replace('nan', 'float("nan")')
+                self.theta = util.Counter(eval(weights_str))
         else:
             print("No weight file found. Initializing weights to zeros.")
             self.theta = util.Counter()
     
-    def save_weights(self, file_path='weights.txt'):
-        with open(file_path, 'w') as file:
-            file.write(str(dict(self.theta)))
+    def save_weights(self, file_path='weights.json'):
+        with open(file_path, 'w') as f:
+            f.write(str(dict(self.theta)))
 
 
 class DefensiveReflexAgent(ReflexCaptureAgent):
@@ -398,7 +410,6 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         if action == Directions.STOP: features['stop'] = 1
         rev = Directions.REVERSE[game_state.get_agent_state(self.index).configuration.direction]
         if action == rev: features['reverse'] = 1
-        print("the defensive is working\n")
         return features
 
     def get_weights(self, game_state, action):
