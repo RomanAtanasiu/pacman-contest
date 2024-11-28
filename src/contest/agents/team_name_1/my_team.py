@@ -22,6 +22,7 @@
 
 import random
 import util
+import math
 
 from capture_agents import CaptureAgent
 from game import Directions
@@ -33,7 +34,7 @@ from util import nearest_point
 #################
 
 def create_team(first_index, second_index, is_red,
-                first='OffensiveReflexAgent', second='DefensiveReflexAgent', num_training=0):
+                first='OffensiveReflexAgent', second='AStarAgent', num_training=0):
     """
     This function should return a list of two agents that will form the
     team, initialized using firstIndex and secondIndex as their agent
@@ -195,3 +196,135 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
 
     def get_weights(self, game_state, action):
         return {'num_invaders': -1000, 'on_defense': 100, 'invader_distance': -10, 'stop': -100, 'reverse': -2}
+
+class AStarAgent(CaptureAgent):
+    def __init__(self, index, time_for_computing=.1):
+        super().__init__(index, time_for_computing)
+        self.start = None
+        self.previous_food = None
+        self.previous_capsules = None
+        self.target_position = None
+        self.current_position = None
+        self.count_actions = 0
+
+    def register_initial_state(self, game_state):
+        self.start = game_state.get_agent_position(self.index)
+        self.current_position = self.start
+        CaptureAgent.register_initial_state(self, game_state)
+        self.previous_food = self.get_food_you_are_defending(game_state).as_list()
+
+        #S'ha de pensar q fer amb les capsules
+        self.previous_capsules = self.get_capsules_you_are_defending(game_state)
+
+    def choose_action(self, game_state):
+        # Get the food you are defending and the capsules you are defending in this state
+        current_food = self.get_food_you_are_defending(game_state).as_list()
+        current_capsules = self.get_capsules_you_are_defending(game_state)
+
+        # Check if the food or capsules have changed
+        if current_food != self.previous_food or current_capsules != self.previous_capsules:
+            # get the food position that have been eaten
+            eaten_food = [food for food in self.previous_food if food not in current_food]
+
+            # get the capsules that have been eaten
+            eaten_capsules = [capsule for capsule in self.previous_capsules if capsule not in current_capsules]
+
+            # in each new state, the maximum food eaten by the enemies is two because there are two enemies
+            # if the food has been eaten, update the target position to the nearest eaten food
+            if eaten_food:
+                self.target_position = min(eaten_food, key=lambda x: self.get_maze_distance(self.start, x))
+
+        # Check if an enemie is visible
+        enemies = [game_state.get_agent_state(i) for i in self.get_opponents(game_state)]
+        invaders = [a for a in enemies if a.is_pacman and a.get_position() is not None]
+
+
+
+        # if there are invaders, update the target position towards the nearest invader
+        if invaders:
+            self.target_position = min([invader.get_position() for invader in invaders], key=lambda x: self.get_maze_distance(self.start, x))
+
+        # update the previous food and capsules
+        self.previous_food = current_food
+        self.previous_capsules = current_capsules
+
+        # if there is a target position, call a_star_search to get the path to the target position
+
+        if self.target_position:
+            print("AA")
+            target = self.target_position
+        else:
+            target = (game_state.data.layout.width // 2, game_state.data.layout.height // 2)
+
+        current_position = game_state.get_agent_position(self.index)
+        path = self.a_star_search(game_state, current_position, target)
+
+        # reset the target position
+        self.count_actions += 1
+        # guardar l'ultima posicio del fantasma vist o menjar menjat durant 10 posicions pq vagi cap allà
+        if self.count_actions == 10:
+            self.target_position = None
+            self.count_actions = 0
+
+
+        # if there is a path, return the first action to the next position in the path
+        if path:
+            print(path)
+            return path[0]
+        else:
+            # if there is no path, return a random action
+            print("EE")
+
+            # si esta al centre del taulell, no pot anar cap a west
+            actions = game_state.get_legal_actions(self.index)
+            if current_position[0] == game_state.data.layout.width // 2:
+                actions = [action for action in actions if action != Directions.WEST]
+            return random.choice(actions)
+
+    def a_star_search(self, game_state, start, goal):
+        """
+        A* search
+        """
+        frontier_priority_queue = util.PriorityQueue()
+        frontier_priority_queue.push((start, []), 0)
+        expanded_nodes = set()
+
+        while not frontier_priority_queue.is_empty():
+            current_pos, path = frontier_priority_queue.pop()
+
+            if current_pos in expanded_nodes:
+                continue
+
+            expanded_nodes.add(current_pos)
+
+            if current_pos == goal:
+                return path
+
+            for next_pos, direction, cost in self.get_successors(game_state, current_pos):
+                if next_pos not in expanded_nodes:
+                    new_path = path + [direction]
+                    new_cost = len(new_path) + self.get_maze_distance(next_pos, goal)
+                    frontier_priority_queue.push((next_pos, new_path), new_cost)
+
+        return []
+
+    def get_successors(self, game_state, position):
+        successors = []
+        for direction in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
+            next_position = self.get_successor_position(position, direction)
+            if not game_state.has_wall(int(next_position[0]), int(next_position[1])):
+                successors.append((next_position, direction, 1))
+        return successors
+
+    def get_successor_position(self, position, direction):
+        x, y = position
+        if direction == Directions.NORTH:
+            return (x, y + 1)
+        elif direction == Directions.SOUTH:
+            return (x, y - 1)
+        elif direction == Directions.EAST:
+            return (x + 1, y)
+        elif direction == Directions.WEST:
+            return (x - 1, y)
+        return position
+
