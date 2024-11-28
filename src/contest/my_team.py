@@ -23,8 +23,7 @@
 import math
 import random
 import util
-import os
-#import numpy as np
+import numpy as np
 
 from capture_agents import CaptureAgent
 from game import Directions
@@ -226,7 +225,6 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             delta_x = closest_food[0] - my_pos[0]
             delta_y = closest_food[1] - my_pos[1]
             angle_to_food = math.atan2(delta_y, delta_x)
-        """
         # Compute the angle to the closest ghost
         elif len(ghosts) > 0:
             closest_ghost = None
@@ -246,7 +244,6 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                 features['ghost_in_trajectory'] = 0
         else:
             features['ghost_in_trajectory'] = 0
-        """
         return features
     
     
@@ -278,6 +275,9 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             else:
                 reward -= 10
     
+        # winning
+        if successor.is_win():
+            reward += 2000
         
         # Reward for approaching the boundary if you are a ghost
         if not my_state.is_pacman:
@@ -354,18 +354,15 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
     def get_weights(self, game_state, action):
         return self.theta
     
-    
-    def load_weights(self, file_path='weights.txt'):
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as file:
-                self.theta = util.Counter(eval(file.read()))
-        else:
+    def load_weights(self, file_path='weights.npy'):
+        try:
+            self.theta = np.load(file_path)
+        except FileNotFoundError:
             print("No weight file found. Initializing weights to zeros.")
             self.theta = util.Counter()
-    
-    def save_weights(self, file_path='weights.txt'):
-        with open(file_path, 'w') as file:
-            file.write(str(dict(self.theta)))
+            
+    def save_weights(self, file_path='weights.npy'):
+        np.save(file_path, self.theta)
 
 
 class DefensiveReflexAgent(ReflexCaptureAgent):
