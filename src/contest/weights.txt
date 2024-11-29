@@ -1,1 +1,0 @@
-{'successor_score': nan, 'distance_to_food': nan, 'remaining_food': nan, 'num_carrying_food': nan, 'distance_to_boundary': nan, 'distance_to_rival': nan, 'ghost_in_threshold': nan}

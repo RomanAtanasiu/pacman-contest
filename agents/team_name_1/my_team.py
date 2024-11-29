@@ -144,7 +144,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
   we give you to get an idea of what an offensive agent might look like,
   but it is by no means the best or only way to build an offensive agent.
   """
-    def __init__(self, index, alpha=0.1, gamma=0.9, epsilon=0.1, ghost_threshold=5, max_distance=100, max_food=20): 
+    def __init__(self, index, alpha=0.001, gamma=0.85, epsilon=0.25, ghost_threshold=5, max_distance=100, max_food=20): 
         super().__init__(index)
         print("Initializing OffensiveReflexAgent\n")
         self.alpha = alpha  # Learning rate
@@ -169,10 +169,10 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         successor = self.get_successor(game_state, action)
         food_list = self.get_food(successor).as_list()
         features['successor_score'] = -len(food_list)/self.max_food  # self.get_score(successor)
+        my_pos = successor.get_agent_state(self.index).get_position()
 
         # Compute distance to the nearest food
         if len(food_list) > 0:  # This should always be True,  but better safe than sorry
-            my_pos = successor.get_agent_state(self.index).get_position()
             min_distance = min([self.get_maze_distance(my_pos, food) for food in food_list])
             features['distance_to_food'] = min_distance/self.max_distance
         else:
@@ -279,6 +279,8 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         if my_pos in capsule_list:
             reward += 20
     
+    
+    
         #  being captured
         enemies = [successor.get_agent_state(i) for i in self.get_opponents(successor)]
         ghosts = [a for a in enemies if not a.is_pacman and a.get_position() is not None]
@@ -290,21 +292,27 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
     
         
         # Reward for approaching the boundary if you are a ghost
+        walls = game_state.get_walls()
+        mid_x = walls.width // 2
+        if self.red:
+            boundary_x = mid_x - 1
+        else:
+            boundary_x = mid_x
+        boundary_points = [(boundary_x, y) for y in range(walls.height) if not walls[boundary_x][y]]
+        min_distance = min([self.get_maze_distance(my_pos, point) for point in boundary_points])
+        previous_pos = previous_state.get_position()
+        previous_min_distance = min([self.get_maze_distance(previous_pos, point) for point in boundary_points])
         if not my_state.is_pacman:
-            walls = game_state.get_walls()
-            mid_x = walls.width // 2
-            if self.red:
-                boundary_x = mid_x - 1
-            else:
-                boundary_x = mid_x
-            boundary_points = [(boundary_x, y) for y in range(walls.height) if not walls[boundary_x][y]]
-            min_distance = min([self.get_maze_distance(my_pos, point) for point in boundary_points])
-            previous_pos = previous_state.get_position()
-            previous_min_distance = min([self.get_maze_distance(previous_pos, point) for point in boundary_points])
             if min_distance < previous_min_distance:
                 reward += 1
+                
+                
+        # Reward for approaching the boundary if carrying food
+        if my_state.is_pacman and my_state.num_carrying > 0:
+            if min_distance < previous_min_distance:
+                reward += 3*my_state.num_carrying
         
-        # you stay as ghost (you are an offensive agent, you should be pacman as long as possible)
+        # penalti if you stay as ghost (you are an offensive agent, you should be pacman as long as possible)
         previous_state = game_state.get_agent_state(self.index)
         if not previous_state.is_pacman and not my_state.is_pacman:
             reward -= 30
@@ -313,7 +321,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         if my_state.num_returned > previous_state.num_returned:
             reward += 20 * (my_state.num_returned - previous_state.num_returned)
     
-        return reward/2000
+        return reward/200
     
     def evaluate(self, game_state, action):
         weights = self.get_weights(game_state, action)
