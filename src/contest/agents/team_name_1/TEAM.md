@@ -1,18 +1,17 @@
 # Team Information
 
-**Course:** _[fill your course code and name]_
+**Course:** _[24304 and Intel·ligència Artificial]_
 
-**Semester:** Semester _[1|2]_, _[year]_
+**Semester:** Semester _[1]_, _[2024-2025]_
 
-**Instructor:** _[name of your instructor]_
+**Instructor:** _[Sergio Calo]_
 
-**Team name:** _[replace this with team name in plan text]_
+**Team name:** _[ª]_
 
 **Team members:**
 
-* Student 1's Student number - Full Name - Student email - Student Github id
-* Student 2's Student number - Full Name - Student email - Student Github id
-* Student 3's Student number - Full Name - Student email - Student Github id
+* 267839 - Roman Atanasiu Alonso - roman.atanasiu01@estudiant.upf.edu - RomanAtanasiu
+* Student 2's Student number - Xavier Cañadas Briasnki - xavier.canadas01@estudiant.upf.edu - XavierCanadas
 
 Replace the lines above with the correct details of members. Delete or add lines as needed.
 
