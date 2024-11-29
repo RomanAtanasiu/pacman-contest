@@ -1,1 +1,1 @@
-{'successor_score': 0.3228411993711526, 'distance_to_food': -0.2989964980718472, 'remaining_food': 0.3228411993711526, 'num_carrying_food': 1.7682956930072309, 'distance_to_boundary': -0.10300237812154493, 'distance_to_rival': 0.030697894713029365, 'ghost_in_threshold': 0.3788629907110049}
+{'successor_score': 0.5967378401597807, 'distance_to_boundary': 0.29987240616421795, 'distance_to_food': 0.10776276355062436, 'num_carrying_food': 0.02809920711219421, 'distance_to_rival': 0.3025656349122518}
